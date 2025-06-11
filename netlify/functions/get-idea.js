@@ -1,6 +1,6 @@
 /**
  * This is a Netlify serverless function. It acts as a secure proxy to the Gemini API.
- * This version uses the built-in 'https' module to avoid external dependencies.
+ * This version uses the built-in 'https' module to avoid external dependencies and has enhanced error handling.
  */
 const https = require('https');
 
@@ -50,25 +50,31 @@ exports.handler = async function(event) {
                 });
                 res.on('end', () => {
                     if (res.statusCode >= 200 && res.statusCode < 300) {
-                        const result = JSON.parse(data);
-                        let ideaText = "Could not generate an idea. Please try again.";
-                        if (result.candidates && result.candidates[0]?.content?.parts[0]) {
-                            ideaText = result.candidates[0].content.parts[0].text.trim().replace(/^"|"$/g, '');
+                        try {
+                            const result = JSON.parse(data);
+                            let ideaText = "Could not generate an idea. Please try again.";
+                            if (result.candidates && result.candidates[0]?.content?.parts[0]) {
+                                ideaText = result.candidates[0].content.parts[0].text.trim().replace(/^"|"$/g, '');
+                            }
+                            resolve(ideaText);
+                        } catch (parseError) {
+                            console.error("JSON Parsing Error:", parseError);
+                            console.error("Received non-JSON response from Gemini API:", data);
+                            reject(new Error('Received an invalid response from the AI service.'));
                         }
-                        resolve(ideaText);
                     } else {
-                        console.error("Gemini API Error:", data);
-                        reject(new Error('Failed to get a response from the AI.'));
+                        console.error("Gemini API Error - Status:", res.statusCode);
+                        console.error("Gemini API Error - Body:", data);
+                        reject(new Error('The AI service returned an error. Check function logs.'));
                     }
                 });
             });
 
             req.on('error', (error) => {
                 console.error("Request Error:", error);
-                reject(new Error('An internal server error occurred.'));
+                reject(new Error('An internal server error occurred while contacting the AI.'));
             });
 
-            // Write the payload and end the request
             req.write(payload);
             req.end();
         });
