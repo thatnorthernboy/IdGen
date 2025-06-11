@@ -1,6 +1,8 @@
 /**
  * This is a Netlify serverless function. It acts as a secure proxy to the Gemini API.
  */
+const fetch = require('node-fetch');
+
 exports.handler = async function(event) {
     // We only accept POST requests to this function
     if (event.httpMethod !== 'POST') {
@@ -34,9 +36,7 @@ exports.handler = async function(event) {
                 parts: [{ text: prompt }]
             }]
         };
-
-        // Use 'node-fetch' or a similar library in a real Node.js environment.
-        // In Netlify functions, we can use the global fetch.
+        
         const response = await fetch(apiUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
