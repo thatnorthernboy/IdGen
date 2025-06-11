@@ -1,10 +1,10 @@
 /**
  * This is a Netlify serverless function. It acts as a secure proxy to the Gemini API.
+ * This version uses the built-in 'https' module to avoid external dependencies.
  */
-const fetch = require('node-fetch');
+const https = require('https');
 
 exports.handler = async function(event) {
-    // We only accept POST requests to this function
     if (event.httpMethod !== 'POST') {
         return {
             statusCode: 405,
@@ -12,9 +12,7 @@ exports.handler = async function(event) {
         };
     }
 
-    // Get the secret API key from Netlify's environment variables
     const apiKey = process.env.GEMINI_API_KEY;
-
     if (!apiKey) {
         return {
             statusCode: 500,
@@ -23,54 +21,68 @@ exports.handler = async function(event) {
     }
 
     try {
-        // Get the category sent from the frontend
         const { category } = JSON.parse(event.body);
         const prompt = `Generate a single, innovative, and concise project idea within the '${category}' category. The idea should be actionable for a small team.`;
 
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-
-        // Prepare the payload for the Gemini API
-        const payload = {
+        const payload = JSON.stringify({
             contents: [{
                 role: "user",
                 parts: [{ text: prompt }]
             }]
-        };
-        
-        const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
         });
 
-        if (!response.ok) {
-            console.error("Gemini API Error:", await response.text());
-            return {
-                statusCode: response.status,
-                body: JSON.stringify({ message: 'Failed to get a response from the AI.' }),
+        // Use a promise to handle the https request asynchronously
+        const idea = await new Promise((resolve, reject) => {
+            const options = {
+                hostname: 'generativelanguage.googleapis.com',
+                path: `/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Content-Length': Buffer.byteLength(payload),
+                },
             };
-        }
 
-        const result = await response.json();
-        
-        let ideaText = "Could not generate an idea. Please try again.";
-        if (result.candidates && result.candidates.length > 0 &&
-            result.candidates[0].content && result.candidates[0].content.parts &&
-            result.candidates[0].content.parts.length > 0) {
-            ideaText = result.candidates[0].content.parts[0].text.trim().replace(/^"|"$/g, '');
-        }
+            const req = https.request(options, (res) => {
+                let data = '';
+                res.on('data', (chunk) => {
+                    data += chunk;
+                });
+                res.on('end', () => {
+                    if (res.statusCode >= 200 && res.statusCode < 300) {
+                        const result = JSON.parse(data);
+                        let ideaText = "Could not generate an idea. Please try again.";
+                        if (result.candidates && result.candidates[0]?.content?.parts[0]) {
+                            ideaText = result.candidates[0].content.parts[0].text.trim().replace(/^"|"$/g, '');
+                        }
+                        resolve(ideaText);
+                    } else {
+                        console.error("Gemini API Error:", data);
+                        reject(new Error('Failed to get a response from the AI.'));
+                    }
+                });
+            });
 
-        // Send the successful response back to the frontend
+            req.on('error', (error) => {
+                console.error("Request Error:", error);
+                reject(new Error('An internal server error occurred.'));
+            });
+
+            // Write the payload and end the request
+            req.write(payload);
+            req.end();
+        });
+
         return {
             statusCode: 200,
-            body: JSON.stringify({ idea: ideaText }),
+            body: JSON.stringify({ idea: idea }),
         };
 
     } catch (error) {
         console.error("Error in serverless function:", error);
         return {
             statusCode: 500,
-            body: JSON.stringify({ message: 'An internal server error occurred.' }),
+            body: JSON.stringify({ message: error.message || 'An internal server error occurred.' }),
         };
     }
 };
