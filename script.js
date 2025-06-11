@@ -23,20 +23,21 @@ async function generateNewIdea() {
     // Add a fade-out effect
     ideaDisplay.style.opacity = 0;
 
+    // --- FINAL FIX: Use the absolute URL to the Netlify function ---
+    const functionUrl = 'https://brainstidea.netlify.app/.netlify/functions/get-idea';
+
     try {
-        // The API endpoint is now our own serverless function.
-        // Netlify automatically knows that /api/ points to your functions folder.
-        const response = await fetch('/api/get-idea', {
+        const response = await fetch(functionUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            // Send the selected category to our function
             body: JSON.stringify({ category: selectedCategory }),
         });
 
         if (!response.ok) {
-            const errorData = await response.json();
+            // Try to get a more detailed error message from the response body
+            const errorData = await response.json().catch(() => ({ message: "An unexpected error occurred. The server response was not valid JSON." }));
             throw new Error(errorData.message || `Request failed with status ${response.status}`);
         }
 
@@ -51,7 +52,7 @@ async function generateNewIdea() {
 
     } catch (error) {
         console.error("Error generating idea:", error);
-        showError(error.message || "An unknown error occurred.");
+        showError(error.message);
         // Restore a default message on error
         ideaDisplay.textContent = "Error fetching idea. Try again.";
         ideaDisplay.style.opacity = 1;
