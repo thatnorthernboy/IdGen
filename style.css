@@ -1,0 +1,50 @@
+/* Use the Inter font family from Google Fonts */
+body {
+    font-family: 'Inter', sans-serif;
+}
+
+/* A subtle transition for the idea text opacity */
+#idea-display {
+    transition: opacity 0.3s ease-in-out;
+}
+
+/* Styling for the loader inside the button */
+.loader {
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #4fd1c5; /* Teal color to match theme */
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    animation: spin 1s linear infinite;
+    display: inline-block;
+    margin-right: -12px; /* Adjust position when text is hidden */
+    margin-left: 8px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Styling for the category buttons */
+.category-btn {
+    background-color: transparent;
+    border: 2px solid #4A5568; /* slate-600 */
+    color: #CBD5E0; /* slate-300 */
+    padding: 8px 16px;
+    border-radius: 9999px; /* pill shape */
+    font-weight: 600;
+    transition: all 0.2s ease-in-out;
+}
+
+.category-btn:hover {
+    background-color: #2D3748; /* slate-700 */
+    border-color: #2D3748;
+}
+
+/* Style for the active/selected category button */
+.category-btn.active {
+    background-color: #38B2AC; /* teal-500 */
+    color: white;
+    border-color: #38B2AC;
+}
